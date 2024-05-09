@@ -7,3 +7,4 @@
 *.mod
 *.order
 *.mod.c
+/src/rust-project.json

@@ -5,7 +5,9 @@ use core::slice::from_raw_parts_mut;
 use core::sync::atomic::{AtomicPtr, AtomicU64, Ordering};
 use kernel::prelude::*;
 use kernel::{
-    bindings, c_str, define_pci_id_table, device, dma, driver,
+    bindings,
+    box_ext::BoxExt,
+    c_str, define_pci_id_table, device, dma, driver,
     file::{self, File},
     io_buffer::{IoBufferReader, IoBufferWriter},
     irq,
@@ -55,7 +57,11 @@ impl<T> Ext<T> for Vec<T> {
 
 impl<T: Clone> Ext<T> for [T] {
     fn to_vec(&self) -> Vec<T> {
-        self.try_to_vec().unwrap()
+        let mut vec = Vec::try_with_capacity(self.len()).unwrap();
+        for item in self {
+            vec.try_push(item.clone());
+        }
+        vec
     }
 }
 
@@ -162,7 +168,7 @@ impl irq::Handler for E1000Driver {
         */
         // pr_info!("irq::Handler E1000_ICR = {:#x}\n", intr);
 
-        if (intr & (1<<7)) == 0 {
+        if (intr & (1 << 7)) == 0 {
             pr_warn!("No valid e1000 interrupt was found\n");
             return irq::Return::None;
         }
@@ -233,7 +239,12 @@ impl<T> e1000::KernelFunc for Kernfn<T> {
         let vaddr = alloc.cpu_addr as usize;
         let paddr = alloc.dma_handle as usize;
         self.alloc_coherent.try_push(alloc);
-        pr_info!("Allocated {} pages, vaddr: {:#x}, paddr: {:#x}\n", pages, vaddr, paddr);
+        pr_info!(
+            "Allocated {} pages, vaddr: {:#x}, paddr: {:#x}\n",
+            pages,
+            vaddr,
+            paddr
+        );
 
         (vaddr, paddr)
     }
@@ -242,7 +253,7 @@ impl<T> e1000::KernelFunc for Kernfn<T> {
         pr_info!("Deallocating addr: {:#x}\n", vaddr);
         self.alloc_coherent.retain(|alloc| {
             if alloc.cpu_addr as usize == vaddr {
-                drop(alloc);
+                let _ = alloc;
                 false
             } else {
                 true
@@ -286,15 +297,17 @@ impl net::DeviceOperations for E1000Driver {
             *dev_e1k = Some(e1000_device);
         }
 
-        let irq_data = Box::try_new(IrqData {
+        let irq_data = Box::try_new_atomic(IrqData {
             dev_e1000: data.dev_e1000.clone(),
             res: data.res.clone(),
             napi: data.napi.clone(),
         })?;
         let irq_regist = request_irq(data.irq.unwrap(), irq_data)?;
         // 注意把申请的irq放入Box中，其他线程才能handle中断
-        data.irq_handler
-            .store(Box::into_raw(Box::try_new(irq_regist)?), Ordering::Relaxed);
+        data.irq_handler.store(
+            Box::into_raw(Box::try_new_atomic(irq_regist)?),
+            Ordering::Relaxed,
+        );
 
         // Enable NAPI scheduling
         data.napi.enable();
@@ -345,7 +358,7 @@ impl net::DeviceOperations for E1000Driver {
         // );
 
         dev.sent_queue(skb.len());
-        skb.set_tx_timestamp();
+        skb.tx_timestamp();
         let len = {
             let mut dev_e1k = data.dev_e1000.lock_irqdisable();
             dev_e1k.as_mut().unwrap().e1000_transmit(skb_data)
@@ -393,9 +406,11 @@ impl net::DeviceOperations for E1000Driver {
         data.napi.disable();
 
         let irq_ptr = data.irq_handler.load(Ordering::Relaxed);
-        unsafe{ drop(Box::from_raw(irq_ptr)); }
+        unsafe {
+            let _ = Box::from_raw(irq_ptr);
+        }
 
-        drop(data);
+        // drop(data);
         Ok(())
     }
 }
@@ -458,7 +473,7 @@ impl pci::Driver for E1000Driver {
         let napi = net::NapiAdapter::<Poller>::add_weight(&net_dev, 64)?;
         net_dev.netif_carrier_off();
 
-        let net_data = Box::try_new(NetData {
+        let net_data = Box::try_new_atomic(NetData {
             dev,
             res: bar_res.clone(),
             dev_e1000,
@@ -469,7 +484,7 @@ impl pci::Driver for E1000Driver {
         })?;
         regist.register(net_data)?; // ip link show
 
-        Ok(Box::try_new(DrvData {
+        Ok(Box::try_new_atomic(DrvData {
             regist,
             bar_res: bar_res.clone(),
             bar_mask,
@@ -479,8 +494,9 @@ impl pci::Driver for E1000Driver {
     fn remove(pci_dev: &mut pci::Device, data: &Self::Data) {
         pr_info!("PCI Driver remove\n");
         pci_dev.release_selected_regions(data.bar_mask);
-        drop(data);
+        // drop(data);
     }
+
     define_pci_id_table! {u32, [
         (pci::DeviceId::new(VENDOR_ID_INTEL, DEVICE_ID_INTEL_82540EM), Some(0x1)),
         (pci::DeviceId::new(VENDOR_ID_INTEL, DEVICE_ID_INTEL_82574L), Some(0x1)),
@@ -489,14 +505,16 @@ impl pci::Driver for E1000Driver {
     ]}
 }
 
+const fn pci_device_id_new(vendor: u16, device: u16) {}
+
 struct RustE1000dev {
     dev: Pin<Box<driver::Registration<pci::Adapter<E1000Driver>>>>,
 }
 
 impl kernel::Module for RustE1000dev {
-    fn init(name: &'static CStr, module: &'static ThisModule) -> Result<Self> {
-
-        pr_info!(r"
+    fn init(module: &'static ThisModule) -> Result<Self> {
+        pr_info!(
+            r"
  ____            _      __              _     _                  
 |  _ \ _   _ ___| |_   / _| ___  _ __  | |   (_)_ __  _   ___  __
 | |_) | | | / __| __| | |_ / _ \| '__| | |   | | '_ \| | | \ \/ /
@@ -509,10 +527,14 @@ impl kernel::Module for RustE1000dev {
 | |_| | |  | |\ V /  __/ |  \__ \
 |____/|_|  |_| \_/ \___|_|  |___/
                                  
-");
+"
+        );
         pr_info!("Rust e1000 device driver (init)\n");
 
-        let dev = driver::Registration::<pci::Adapter<E1000Driver>>::new_pinned(name, module)?;
+        let dev = driver::Registration::<pci::Adapter<E1000Driver>>::new_pinned(
+            c_str!("rust_e1000dev"),
+            module,
+        )?;
         Ok(RustE1000dev { dev })
     }
 }

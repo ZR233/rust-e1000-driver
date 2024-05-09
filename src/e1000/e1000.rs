@@ -5,7 +5,6 @@ use super::super::Volatile;
 use alloc::vec::Vec;
 use core::{cmp::min, mem::size_of, slice::from_raw_parts_mut};
 use crate::utils::*;
-use kernel::pr_info;
 
 const TX_RING_SIZE: usize = 256;
 const RX_RING_SIZE: usize = 256;
@@ -74,7 +73,7 @@ pub struct RxDesc {
 impl<'a, K: KernelFunc> E1000Device<'a, K> {
     /// New an e1000 device by Allocating memory
     pub fn new(mut kfn: K, mapped_regs: usize) -> Result<Self, i32> {
-        pr_info!("New E1000 device @ {:#x}\n", mapped_regs);
+        info!("New E1000 device @ {:#x}\n", mapped_regs);
         // 分配的ring内存空间需要16字节对齐
         let alloc_tx_ring_pages =
             ((TX_RING_SIZE * size_of::<TxDesc>()) + (K::PAGE_SIZE - 1)) / K::PAGE_SIZE;
@@ -184,7 +183,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
     pub fn e1000_init(&mut self) {
         let stat = self.regs[E1000_STAT].read();
         let ctrl = self.regs[E1000_CTL].read();
-        pr_info!("e1000 CTL: {:#x}, Status: {:#x}\n", ctrl, stat);
+        info!("e1000 CTL: {:#x}, Status: {:#x}\n", ctrl, stat);
 
         // Reset the device
         self.regs[E1000_IMS].write(0); // disable interrupts
@@ -229,7 +228,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         self.regs[E1000_TXDCTL0].write((1 << E1000_TXDCTL_GRAN_SHIFT) | E1000_TXDCTL_WTHRESH);
         self.regs[E1000_TXDCTL1].write((1 << E1000_TXDCTL_GRAN_SHIFT) | E1000_TXDCTL_WTHRESH);
         // [E1000 14.4] Receive initialization
-        pr_info!("rx ring 0: {:x?}\n",self.rx_ring[0]);
+        info!("rx ring 0: {:x?}\n",self.rx_ring[0]);
         if (self.rx_ring.len() * size_of::<RxDesc>()) % 128 != 0 {
             error!("e1000, size of rx_ring is invalid");
         }
@@ -243,7 +242,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
             ) & !(0b11 << 10) // Just for e1000e DTYP bits[11:10]=00 : Legacy description type
         ); 
         self.regs[E1000_RFCTL].write(0); //e1000e RFCTL.EXSTEN bits[15]=0 : Legacy Desc
-        pr_info!("e1000 RCTL: {:#x}, RFCTL: {:#x}\n", self.regs[E1000_RCTL].read(), self.regs[E1000_RFCTL].read());
+        info!("e1000 RCTL: {:#x}, RFCTL: {:#x}\n", self.regs[E1000_RCTL].read(), self.regs[E1000_RFCTL].read());
 
         self.regs[E1000_RDBAL].write(self.rx_ring_dma as u32);
         self.regs[E1000_RDBAH].write((self.rx_ring_dma >> 32) as u32);
@@ -283,7 +282,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         self.e1000_power_up_phy();
 
         self.e1000_write_flush();
-        pr_info!("e1000_init has been completed\n");
+        info!("e1000_init has been completed\n");
     }
 
     /// Transmitting network packets
@@ -304,7 +303,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         let mbuf = unsafe { from_raw_parts_mut(self.tx_mbufs[tindex] as *mut u8, length) };
         mbuf.copy_from_slice(packet);
 
-        pr_info!(">>>>>>>>> TX PKT {}\n", length);
+        info!(">>>>>>>>> TX PKT {}\n", length);
 
         self.tx_ring[tindex].length = length as u16;
         self.tx_ring[tindex].status = 0;
@@ -324,9 +323,9 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         let tdbal = self.regs[E1000_TDBAL].read() as usize;
         let tdlen = self.regs[E1000_TDLEN].read() as usize;
         let status = self.regs[E1000_STAT].read();
-        pr_info!("link speed: 0x{:08x}", status);
-        pr_info!("Read E1000_TDH = {:#x}\n", tdh);
-        pr_info!("Read E1000_TDT = {:#x}\n", tindex);
+        info!("link speed: 0x{:08x}", status);
+        info!("Read E1000_TDH = {:#x}\n", tdh);
+        info!("Read E1000_TDT = {:#x}\n", tindex);
 
         length as i32
     }
@@ -351,7 +350,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
             // pr_info!("Read E1000_RDT + 1 = {:#x}", rindex);
             let len = self.rx_ring[rindex].length as usize;
             let mbuf = unsafe { from_raw_parts_mut(self.rx_mbufs[rindex] as *mut u8, len) };
-            pr_info!("RX PKT {} <<<<<<<<<", len);
+            info!("RX PKT {} <<<<<<<<<", len);
             //recv_packets.push_back(mbuf.to_vec());
             // pr_info!("RX===================================={:02x?}\n", mbuf);
             recv_packets.push(mbuf.to_vec());
@@ -372,7 +371,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
 
             rindex = (rindex + 1) % RX_RING_SIZE;
         }
-        pr_info!("e1000_recv\n\r");
+        info!("e1000_recv\n\r");
 
         if recv_packets.len() > 0 {
             Some(recv_packets)
@@ -419,10 +418,11 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         // self.regs[E1000_ICR].write(icr); //Writing a 1b to ICR any bit also clears that bit.
         icr
     }
-
+    /// To clean tx irq
     pub fn e1000_clean_tx_irq(&mut self) {
     }
 
+    /// To read phy register
     pub fn e1000_read_phy_reg(&mut self, reg_addr: u32) -> u16 {
         let phy_addr = 1;
         let mut mdic = 0
@@ -441,6 +441,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         mdic as u16
     }
     
+    /// To write a PHY register
     pub fn e1000_write_phy_reg(&mut self, reg_addr: u32, data: u16) {
         let phy_addr = 1;
         let mut mdic = data as u32
@@ -458,19 +459,21 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         }
     }
 
-
+    /// To power up the PHY
     pub fn e1000_power_up_phy(&mut self) {
         let mut mii = self.e1000_read_phy_reg(PHY_CTRL);
         mii |= !MII_CR_POWER_DOWN as u16;
         self.e1000_write_phy_reg(PHY_CTRL, mii);
     }
 
+    /// To force speed 100
     pub fn e1000_force_speed_100(&mut self) {
         let mut mii = self.e1000_read_phy_reg(PHY_CTRL);
         mii = (mii & !(BMCR_SPEED10 as u16)) | BMCR_SPEED100 as u16;
         self.e1000_write_phy_reg(PHY_CTRL, mii);
     }
     
+    /// To force speed 1000
     pub fn e1000_force_speed_1000(&mut self) {
         let mut mii = self.e1000_read_phy_reg(PHY_CTRL);
         mii = (mii & !(BMCR_SPEED10 as u16)) | BMCR_SPEED1000 as u16;
