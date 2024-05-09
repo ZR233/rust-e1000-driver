@@ -8,3 +8,4 @@
 *.order
 *.mod.c
 /src/rust-project.json
+/src/initrd.img
