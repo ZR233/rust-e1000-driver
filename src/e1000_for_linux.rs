@@ -72,10 +72,11 @@ const DEVICE_ID_INTEL_I219: u32 = 0x15fc;
 const DEVICE_ID_INTEL_I219_LM22: u32 = 0x0dc7;
 const DEVICE_ID_INTEL_82540EM: u32 = 0x100e;
 const DEVICE_ID_INTEL_82574L: u32 = 0x10d3;
-//const MAC_HWADDR: [u8; 6] = [0x52, 0x54, 0x00, 0x12, 0x34, 0x56];
+const MAC_HWADDR: [u8; 6] = [0x52, 0x54, 0x00, 0x12, 0x34, 0x56];
 //const MAC_HWADDR: [u8; 6] = [0x90, 0xe2, 0xfc, 0xb5, 0x36, 0x95];
 // const MAC_HWADDR: [u8; 6] = [0x52, 0x54, 0x00, 0x6c, 0xf8, 0x88];
-const MAC_HWADDR: [u8; 6] = [0x88, 0x88, 0x88, 0x88, 0x87, 0x88];
+// const MAC_HWADDR: [u8; 6] = [0x88, 0x88, 0x88, 0x88, 0x87, 0x88];
+// const MAC_HWADDR: [u8; 6] = [0x88, 0x88, 0x88, 0x88, 0x87, 0x88];
 
 module! {
     type: RustE1000dev,
@@ -166,7 +167,7 @@ impl irq::Handler for E1000Driver {
             bindings::readl(ptr as *const u32 as _)
         };
         */
-        // pr_info!("irq::Handler E1000_ICR = {:#x}\n", intr);
+        pr_info!("irq::Handler E1000_ICR = {:#x}\n", intr);
 
         if (intr & (1 << 7)) == 0 {
             pr_warn!("No valid e1000 interrupt was found\n");
@@ -344,7 +345,7 @@ impl net::DeviceOperations for E1000Driver {
         dev: &Device,
         data: <Self::Data as ForeignOwnable>::Borrowed<'_>,
     ) -> NetdevTx {
-        pr_info!("start xmit\n");
+        pr_debug!("start xmit\n");
 
         skb.put_padto(bindings::ETH_ZLEN);
         let _size = skb.len() - skb.data_len();

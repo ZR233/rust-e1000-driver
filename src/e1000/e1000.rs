@@ -303,7 +303,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         let mbuf = unsafe { from_raw_parts_mut(self.tx_mbufs[tindex] as *mut u8, length) };
         mbuf.copy_from_slice(packet);
 
-        info!(">>>>>>>>> TX PKT {}\n", length);
+        debug!(">>>>>>>>> TX PKT {}\n", length);
 
         self.tx_ring[tindex].length = length as u16;
         self.tx_ring[tindex].status = 0;
@@ -323,9 +323,9 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         let tdbal = self.regs[E1000_TDBAL].read() as usize;
         let tdlen = self.regs[E1000_TDLEN].read() as usize;
         let status = self.regs[E1000_STAT].read();
-        info!("link speed: 0x{:08x}", status);
-        info!("Read E1000_TDH = {:#x}\n", tdh);
-        info!("Read E1000_TDT = {:#x}\n", tindex);
+        debug!("link speed: 0x{:08x}", status);
+        debug!("Read E1000_TDH = {:#x}\n", tdh);
+        debug!("Read E1000_TDT = {:#x}\n", tindex);
 
         length as i32
     }
@@ -350,7 +350,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
             // pr_info!("Read E1000_RDT + 1 = {:#x}", rindex);
             let len = self.rx_ring[rindex].length as usize;
             let mbuf = unsafe { from_raw_parts_mut(self.rx_mbufs[rindex] as *mut u8, len) };
-            info!("RX PKT {} <<<<<<<<<", len);
+            debug!("RX PKT {} <<<<<<<<<", len);
             //recv_packets.push_back(mbuf.to_vec());
             // pr_info!("RX===================================={:02x?}\n", mbuf);
             recv_packets.push(mbuf.to_vec());
@@ -371,7 +371,6 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
 
             rindex = (rindex + 1) % RX_RING_SIZE;
         }
-        info!("e1000_recv\n\r");
 
         if recv_packets.len() > 0 {
             Some(recv_packets)
