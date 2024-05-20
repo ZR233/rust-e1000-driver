@@ -419,10 +419,10 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         // self.regs[E1000_ICR].write(icr); //Writing a 1b to ICR any bit also clears that bit.
         icr
     }
-
+    /// e1000_clean_tx_irq
     pub fn e1000_clean_tx_irq(&mut self) {
     }
-
+    /// e1000 read phy reg
     pub fn e1000_read_phy_reg(&mut self, reg_addr: u32) -> u16 {
         let phy_addr = 1;
         let mut mdic = 0
@@ -440,7 +440,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         }
         mdic as u16
     }
-    
+    /// e1000 write phy reg
     pub fn e1000_write_phy_reg(&mut self, reg_addr: u32, data: u16) {
         let phy_addr = 1;
         let mut mdic = data as u32
@@ -458,19 +458,19 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         }
     }
 
-
+    /// e1000 power up phy
     pub fn e1000_power_up_phy(&mut self) {
         let mut mii = self.e1000_read_phy_reg(PHY_CTRL);
         mii |= !MII_CR_POWER_DOWN as u16;
         self.e1000_write_phy_reg(PHY_CTRL, mii);
     }
-
+    /// e1000 force speed 100
     pub fn e1000_force_speed_100(&mut self) {
         let mut mii = self.e1000_read_phy_reg(PHY_CTRL);
         mii = (mii & !(BMCR_SPEED10 as u16)) | BMCR_SPEED100 as u16;
         self.e1000_write_phy_reg(PHY_CTRL, mii);
     }
-    
+    /// e1000 force speed 1000
     pub fn e1000_force_speed_1000(&mut self) {
         let mut mii = self.e1000_read_phy_reg(PHY_CTRL);
         mii = (mii & !(BMCR_SPEED10 as u16)) | BMCR_SPEED1000 as u16;
