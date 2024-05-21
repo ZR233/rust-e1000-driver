@@ -10,3 +10,6 @@ default:
 clean:
 	$(MAKE) ARCH=$(ARCH) LLVM=1 -C $(KDIR) M=$(PWD)/../ clean
 	@[ -e ../Makefile ] && rm ../Makefile
+install:
+	@[ -e ../Makefile ] || ln -s linux/Makefile ../
+	$(MAKE) ARCH=$(ARCH) LLVM=1 -C $(KDIR) M=$(PWD)/../ 

@@ -64,12 +64,13 @@ const RXBUFFER: u32 = 2048;
 const VENDOR_ID_INTEL: u32 = 0x8086;
 const DEVICE_ID_INTEL_I219: u32 = 0x15fc;
 const DEVICE_ID_INTEL_I219_LM22: u32 = 0x0dc7;
+const DEVICE_ID_INTEL_I219_V22: u32 = 0x0dc8;
 const DEVICE_ID_INTEL_82540EM: u32 = 0x100e;
 const DEVICE_ID_INTEL_82574L: u32 = 0x10d3;
 //const MAC_HWADDR: [u8; 6] = [0x52, 0x54, 0x00, 0x12, 0x34, 0x56];
-const MAC_HWADDR: [u8; 6] = [0x90, 0xe2, 0xfc, 0xb5, 0x36, 0x95];
+// const MAC_HWADDR: [u8; 6] = [0x90, 0xe2, 0xfc, 0xb5, 0x36, 0x95];
 // const MAC_HWADDR: [u8; 6] = [0x52, 0x54, 0x00, 0x6c, 0xf8, 0x88];
-//const MAC_HWADDR: [u8; 6] = [0x88, 0x88, 0x88, 0x88, 0x87, 0x88];
+const MAC_HWADDR: [u8; 6] = [0x88, 0x88, 0x88, 0x88, 0x87, 0x88];
 
 module! {
     type: RustE1000dev,
@@ -486,6 +487,7 @@ impl pci::Driver for E1000Driver {
         (pci::DeviceId::new(VENDOR_ID_INTEL, DEVICE_ID_INTEL_82574L), Some(0x1)),
         (pci::DeviceId::new(VENDOR_ID_INTEL, DEVICE_ID_INTEL_I219), Some(0x1)),
         (pci::DeviceId::new(VENDOR_ID_INTEL, DEVICE_ID_INTEL_I219_LM22), Some(0x1)),
+        (pci::DeviceId::new(VENDOR_ID_INTEL, DEVICE_ID_INTEL_I219_V22), Some(0x1)),
     ]}
 }
 
