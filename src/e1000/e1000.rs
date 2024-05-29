@@ -315,7 +315,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         let mbuf = unsafe { from_raw_parts_mut(self.tx_mbufs[tindex] as *mut u8, length) };
         mbuf.copy_from_slice(packet);
 
-        info!(">>>>>>>>> TX PKT {}\n", length);
+        debug!(">>>>>>>>> TX PKT {}\n", length);
 
         self.tx_ring[tindex].length = length as u16;
         self.tx_ring[tindex].status = 0;
@@ -336,9 +336,9 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         let tdbal = self.regs[E1000_TDBAL].read() as usize;
         let tdlen = self.regs[E1000_TDLEN].read() as usize;
         let status = self.regs[E1000_STAT].read();
-        info!("link speed: 0x{:08x}", status);
-        info!("Read E1000_TDH = {:#x}\n", tdh);
-        info!("Read E1000_TDT = {:#x}\n", tindex);
+        debug!("link speed: 0x{:08x}", status);
+        debug!("Read E1000_TDH = {:#x}\n", tdh);
+        debug!("Read E1000_TDT = {:#x}\n", tindex);
 
         length as i32
     }
@@ -363,7 +363,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
             // info!("Read E1000_RDT + 1 = {:#x}", rindex);
             let len = self.rx_ring[rindex].length as usize;
             let mbuf = unsafe { from_raw_parts_mut(self.rx_mbufs[rindex] as *mut u8, len) };
-            info!("RX PKT {} <<<<<<<<<", len);
+            debug!("RX PKT {} <<<<<<<<<", len);
             //recv_packets.push_back(mbuf.to_vec());
             // info!("RX===================================={:02x?}\n", mbuf);
             recv_packets.push(mbuf.to_vec());
@@ -384,7 +384,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
 
             rindex = (rindex + 1) % RX_RING_SIZE;
         }
-        info!("e1000_recv\n\r");
+        debug!("e1000_recv\n\r");
 
         if recv_packets.len() > 0 {
             Some(recv_packets)
@@ -523,5 +523,16 @@ pub fn parse_ra_n(reg_base: usize, n: usize) -> [u8; 6] {
         let h = &*slice_from_raw_parts(&rah as *const u32 as *const u8, 4);
 
         [l[0], l[1], l[2], l[3], h[0], h[1]]
+    }
+}
+/// parse mac addr
+pub fn set_ra_n(reg_base: usize, addr: [u8;6],n: usize) {
+    unsafe {
+        let ral = ((reg_base + 0x05400 + 8 * n) as *const u32).read_volatile();
+        let rah = ((reg_base + 0x05404 + 8 * n) as *const u32).read_volatile();
+
+        let l = &*slice_from_raw_parts(&ral as *const u32 as *const u8, 4);
+        let h = &*slice_from_raw_parts(&rah as *const u32 as *const u8, 4);
+
     }
 }
