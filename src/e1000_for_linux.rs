@@ -67,10 +67,10 @@ const DEVICE_ID_INTEL_I219_LM22: u32 = 0x0dc7;
 const DEVICE_ID_INTEL_I219_V22: u32 = 0x0dc8;
 const DEVICE_ID_INTEL_82540EM: u32 = 0x100e;
 const DEVICE_ID_INTEL_82574L: u32 = 0x10d3;
-//const MAC_HWADDR: [u8; 6] = [0x52, 0x54, 0x00, 0x12, 0x34, 0x56];
+const MAC_HWADDR: [u8; 6] = [0x52, 0x54, 0x00, 0x12, 0x34, 0x56];
 // const MAC_HWADDR: [u8; 6] = [0x90, 0xe2, 0xfc, 0xb5, 0x36, 0x95];
 // const MAC_HWADDR: [u8; 6] = [0x52, 0x54, 0x00, 0x6c, 0xf8, 0x88];
-const MAC_HWADDR: [u8; 6] = [0x88, 0x88, 0x88, 0x88, 0x87, 0x88];
+// const MAC_HWADDR: [u8; 6] = [0x88, 0x88, 0x88, 0x88, 0x87, 0x88];
 
 module! {
     type: RustE1000dev,
@@ -442,6 +442,8 @@ impl pci::Driver for E1000Driver {
 
         let mut regist = net::Registration::<E1000Driver>::try_new(pci_dev)?;
         let net_dev = regist.dev_get();
+     
+
         net_dev.eth_hw_addr_set(&MAC_HWADDR);
         let dev = Arc::try_new(device::Device::from_dev(pci_dev))?;
         let bar_res = Arc::try_new(bar_res)?;
