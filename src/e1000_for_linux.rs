@@ -442,20 +442,10 @@ impl pci::Driver for E1000Driver {
 
         let mut regist = net::Registration::<E1000Driver>::try_new(pci_dev)?;
         let net_dev = regist.dev_get();
-        unsafe{
-            let ral_ptr = (bar_res.ptr as usize + 0x05400) as *const u8;
-            let rah_ptr = (bar_res.ptr as usize + 0x05404) as *const u8;
+        let addr = parse_ra_n(bar_res.ptr as usize, 0);
 
-
-            // let ral = *ral_ptr;
-            // let rah = *rah_ptr;
-
-            let addr = parse_ra(ral_ptr, rah_ptr);
-
-            net_dev.eth_hw_addr_set(&addr);
-        }
-
-
+        net_dev.eth_hw_addr_set(&addr);
+        
 
         // net_dev.eth_hw_addr_set(&MAC_HWADDR);
         let dev = Arc::try_new(device::Device::from_dev(pci_dev))?;

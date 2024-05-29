@@ -1,11 +1,11 @@
 // e1000 Driver for Intel 82540EP/EM
-use super::e1000_const::*;
 use super::super::Ext;
 use super::super::Volatile;
+use super::e1000_const::*;
+use crate::utils::*;
 use alloc::vec::Vec;
 use core::ptr::slice_from_raw_parts;
 use core::{cmp::min, mem::size_of, slice::from_raw_parts_mut};
-use crate::utils::*;
 use kernel::pr_info;
 
 const TX_RING_SIZE: usize = 256;
@@ -191,19 +191,18 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
 
         // info!("e1000 RAL: {:#x}, RAH {:#x}\n", ral, rah);
 
-
         // Reset the device
         self.regs[E1000_IMS].write(0); // disable interrupts
         self.regs[E1000_CTL].write(ctrl | E1000_CTL_RST);
         self.regs[E1000_IMS].write(0); // redisable interrupts
-        
+
         let ctrl = self.regs[E1000_CTL].read();
         self.regs[E1000_CTL].write(ctrl | E1000_CTL_PHY_RST); // reset PHY
         let ctrl = self.regs[E1000_CTL].read();
         self.regs[E1000_CTL].write(ctrl | E1000_CTL_ASDE | (0x1 << 8));
         let ctrl = self.regs[E1000_CTL].read();
         self.regs[E1000_CTL].write(ctrl | E1000_CTL_SLU);
-        
+
         // 内存壁垒 fence
         //__sync_synchronize();
         fence_w();
@@ -221,7 +220,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
             E1000_TCTL_RTLC |
             (0x0f << E1000_TCTL_CT_SHIFT) & // collision stuff
             !(E1000_TCTL_COLD) |
-            (0x3f << E1000_TCTL_COLD_SHIFT)
+            (0x3f << E1000_TCTL_COLD_SHIFT),
         );
         self.regs[E1000_TIPG].write(10 | (8 << 10) | (6 << 20)); // inter-pkt gap
 
@@ -235,21 +234,27 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         self.regs[E1000_TXDCTL0].write((1 << E1000_TXDCTL_GRAN_SHIFT) | E1000_TXDCTL_WTHRESH);
         self.regs[E1000_TXDCTL1].write((1 << E1000_TXDCTL_GRAN_SHIFT) | E1000_TXDCTL_WTHRESH);
         // [E1000 14.4] Receive initialization
-        info!("rx ring 0: {:x?}\n",self.rx_ring[0]);
+        info!("rx ring 0: {:x?}\n", self.rx_ring[0]);
         if (self.rx_ring.len() * size_of::<RxDesc>()) % 128 != 0 {
             error!("e1000, size of rx_ring is invalid");
         }
 
         // receiver control bits.
-        self.regs[E1000_RCTL].write((
-            E1000_RCTL_EN |  // enable receiver
+        self.regs[E1000_RCTL].write(
+            (
+                E1000_RCTL_EN |  // enable receiver
             E1000_RCTL_BAM |  // enable broadcast
             E1000_RCTL_SZ_2048 |  // 2048-byte rx buffers
-            E1000_RCTL_SECRC  // strip CRC
-            ) & !(0b11 << 10) // Just for e1000e DTYP bits[11:10]=00 : Legacy description type
-        ); 
+            E1000_RCTL_SECRC
+                // strip CRC
+            ) & !(0b11 << 10), // Just for e1000e DTYP bits[11:10]=00 : Legacy description type
+        );
         self.regs[E1000_RFCTL].write(0); //e1000e RFCTL.EXSTEN bits[15]=0 : Legacy Desc
-        info!("e1000 RCTL: {:#x}, RFCTL: {:#x}\n", self.regs[E1000_RCTL].read(), self.regs[E1000_RFCTL].read());
+        info!(
+            "e1000 RCTL: {:#x}, RFCTL: {:#x}\n",
+            self.regs[E1000_RCTL].read(),
+            self.regs[E1000_RFCTL].read()
+        );
 
         self.regs[E1000_RDBAL].write(self.rx_ring_dma as u32);
         self.regs[E1000_RDBAH].write((self.rx_ring_dma >> 32) as u32);
@@ -314,7 +319,8 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
 
         self.tx_ring[tindex].length = length as u16;
         self.tx_ring[tindex].status = 0;
-        self.tx_ring[tindex].cmd = (E1000_TXD_CMD_RS | E1000_TXD_CMD_EOP | E1000_TXD_CMD_IFCS) as u8;
+        self.tx_ring[tindex].cmd =
+            (E1000_TXD_CMD_RS | E1000_TXD_CMD_EOP | E1000_TXD_CMD_IFCS) as u8;
         // self.tx_ring[tindex].cmd = (2) as u8;
         // info!("TX Desc = {:#x?}", self.tx_ring[tindex]);
 
@@ -323,7 +329,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         self.e1000_write_flush();
         // sync
         fence_w();
-        
+
         let tdh = self.regs[E1000_TDH].read() as usize;
         let tindex = self.regs[E1000_TDT].read() as usize;
         let tdbah = self.regs[E1000_TDBAH].read() as usize;
@@ -386,7 +392,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
             None
         }
     }
-    
+
     // 参考
     // xv6_for_internet_os
     // https://xiayingp.gitbook.io/build_a_os/labs/lab-10-networking-part-1
@@ -426,8 +432,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         icr
     }
     /// e1000_clean_tx_irq
-    pub fn e1000_clean_tx_irq(&mut self) {
-    }
+    pub fn e1000_clean_tx_irq(&mut self) {}
     /// e1000 read phy reg
     pub fn e1000_read_phy_reg(&mut self, reg_addr: u32) -> u16 {
         let phy_addr = 1;
@@ -436,7 +441,7 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
             | phy_addr << E1000_MDIC_PHY_SHIFT
             | E1000_MDIC_OP_READ;
         self.regs[E1000_MDIC].write(mdic);
-        
+
         // polling the ready bit
         loop {
             mdic = self.regs[E1000_MDIC].read();
@@ -509,11 +514,14 @@ pub fn net_rx(packet: &mut [u8]) {
 }
 
 /// parse mac addr
-pub fn parse_ra(ral: *const u8, rah: *const u8)-> [u8; 6]{
-    unsafe{
-        let l = &*slice_from_raw_parts(ral, 4);
-        let h = &*slice_from_raw_parts(rah, 4);
-        // [l[3], l[2], l[1], l[0], h[3], h[2]]
+pub fn parse_ra_n(reg_base: usize, n: usize) -> [u8; 6] {
+    unsafe {
+        let ral = ((reg_base + 0x05400 + 8 * n) as *const u32).read_volatile();
+        let rah = ((reg_base + 0x05404 + 8 * n) as *const u32).read_volatile();
+
+        let l = &*slice_from_raw_parts(&ral as *const u32 as *const u8, 4);
+        let h = &*slice_from_raw_parts(&rah as *const u32 as *const u8, 4);
+
         [l[0], l[1], l[2], l[3], h[0], h[1]]
     }
 }
