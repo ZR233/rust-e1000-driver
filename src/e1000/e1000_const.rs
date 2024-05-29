@@ -29,7 +29,13 @@ pub(crate) const E1000_TIDV: usize = 0x03820 / 4; /* TX Interrupt Delay Value - 
 pub(crate) const E1000_TADV: usize = 0x0382C / 4; /* TX Interrupt Absolute Delay Val - RW */
 pub(crate) const E1000_MTA: usize = 0x05200 / 4; /* Multicast Table Array - RW Array */
 pub(crate) const E1000_RA: usize = 0x05400 / 4; /* Receive Address Low are used for unicast/multicast address filtering. - RW Array */
+pub(crate) const E1000_RAH: usize = 0x05404 / 4; /* Receive Address High are used for unicast/multicast address filtering. - RW Array */
+
+
+
 pub(crate) const E1000_MDIC: usize = 0x00020 / 4; /* MDI Control Register */
+
+
 
 /* Extension features*/
 pub(crate) const E1000_RFCTL: usize = 0x05008 / 4; /* e1000e: RFCTL */

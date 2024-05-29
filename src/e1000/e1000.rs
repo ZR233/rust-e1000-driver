@@ -3,6 +3,7 @@ use super::e1000_const::*;
 use super::super::Ext;
 use super::super::Volatile;
 use alloc::vec::Vec;
+use core::ptr::slice_from_raw_parts;
 use core::{cmp::min, mem::size_of, slice::from_raw_parts_mut};
 use crate::utils::*;
 use kernel::pr_info;
@@ -185,6 +186,11 @@ impl<'a, K: KernelFunc> E1000Device<'a, K> {
         let stat = self.regs[E1000_STAT].read();
         let ctrl = self.regs[E1000_CTL].read();
         info!("e1000 CTL: {:#x}, Status: {:#x}\n", ctrl, stat);
+        let ral = self.regs[E1000_RA].read();
+        let rah = self.regs[E1000_RAH].read();
+
+        // info!("e1000 RAL: {:#x}, RAH {:#x}\n", ral, rah);
+
 
         // Reset the device
         self.regs[E1000_IMS].write(0); // disable interrupts
@@ -500,4 +506,14 @@ pub fn net_rx(packet: &mut [u8]) {
       mbuffree(m);
 
       */
+}
+
+/// parse mac addr
+pub fn parse_ra(ral: *const u8, rah: *const u8)-> [u8; 6]{
+    unsafe{
+        let l = &*slice_from_raw_parts(ral, 4);
+        let h = &*slice_from_raw_parts(rah, 4);
+        // [l[3], l[2], l[1], l[0], h[3], h[2]]
+        [l[0], l[1], l[2], l[3], h[0], h[1]]
+    }
 }
